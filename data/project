@@ -1,0 +1,89 @@
+vocabulary V {
+        type index isa int
+        
+        n : index
+        type diag isa int
+
+        diag1(index, index) : diag
+        diag2(index, index) : diag
+    
+    	type time isa int
+    
+    	rowMove(time, index, index, index, index)
+    	colMove(time, index, index,index,index)
+    	diag1Move(time, index, index,index,index)
+    	diag2Move(time, index, index,index,index)
+    
+    	queensBetweenRow(time,index,index,index,index)
+    	queensBetweenCol(time,index,index,index,index)
+    	queensBetweenDiag1(time,index,index,index,index)
+    	queensBetweenDiag2(time,index,index,index,index)
+    
+    	validMove(time,index,index,index,index)
+    
+    	only1Move(time)
+    
+    	safeBoard(time)
+    
+    	queen(time, index, index)
+}
+
+structure S : V {
+        index = {1..4}
+        diag = {1..7}
+        n = 4
+}
+
+theory T : V {
+        { diag1(x, y) = x - y + n. }
+        { diag2(x, y) = x + y - 1. }
+    	!x[index] : ?=1y[index] : queen(t,x, y).                  //(1)
+        !y : ?=1x : queen(t,x, y).                                //(2)
+        !d : #{x y : queen(t,x, y) & diag1(x, y) = d} < 2.        //(3)
+        !d : #{x y : queen(t,x, y) & diag2(x, y) = d} < 2.
+
+    	!x:!y:!t:!dy : queensBetweenRow(t,x,y,x,dy) <=>  ?yevil : queen(t,x,yevil) & ((yevil > y & yevil < dy) | (yevil < y & yevil > dy)).
+    	!x:!y:!t:!dx : queensBetweenCol(t,x,y,dx,y) <=>  ?xevil : queen(t,xevil,y) & ((xevil > x & xevil < dx) | (xevil < x & xevil > dy)).
+    	!x:!y:!t:!dx : queensBetweenDiag1(t,x,y,dx,dy) <=>  ?xevil:?yevil : queen(t,xevil,yevil) & (diag1(x,y) = diag1(xevil,yevil)) & ((xevil > x & xevil < dx) & (yevil < y & yevil > dy)).
+    	!x:!y:!t:!dx : queensBetweenDiag2(t,x,y,dx,dy) <=>  ?xevil:?yevil : queen(t,xevil,yevil) & (diag2(x,y) = diag2(xevil,yevil)) & ((xevil > x & xevil < dx) & (yevil < y & yevil > dy)). 
+    	
+    	!t:!x:!y:!dx:!dy : rowMove(t,x,y,dx,dy) <=> (dx = x) & (dy ~= y) & ~queensBetweenRow(t,x,y,x,dy).
+    	!t:!x:!y:!dx:!dy : colMove(t,x,y,dx,dy) <=> (dy = y) & (dx ~= x) & ~queensBetweenCol(t,x,y,dx,y).
+    	!t:!x:!y:!dx:!dy : diag1Move(t,x,y,dx,dy) <=> ((dy ~= y) & (dx ~= x)) & ~queensBetweenDiag1(t,x,y,dx,dy) & (diag1(x,y) = diag1(dx,dy)).
+    	!t:!x:!y:!dx:!dy : diag2Move(t,x,y,dx,dy) <=> ((dy ~= y) & (dx ~= x)) & ~queensBetweenDiag2(t,x,y,dx,dy) & (diag2(x,y) = diag2(dx,dy)).
+    
+    	!t:!x:!y:!dx:!dy : validMove(t,x,y,dx,dy) <=> queen(t,x,y) & (rowMove(t,x,y,dx,dy) | colMove(t,x,y,dx,dy) | diag1Move(t,x,y,dx,dy) | diag2Move(t,x,y,dx,dy)).
+    
+    	!t:!x:!y : queen(t,x,y) <=> queen(t-1,x,y) |  ?xs:?ys : queen(t-1,xs,ys) & validMove(t-1,xs,ys,x,y).
+    
+    	!t : only1Move(t) <=> (t > 0) & ?a:?b:?c:?d : (queen(t-1,a,b) & ~queen(t,a,b)) & (queen(t,c,d) & ~queen(t-1,c,d)) & ~?e:~?f : (queen(t-1,e,f) & ~queen(t,e,f)) | (queen(t,e,f) & ~queen(t-1,e,f)) & (a~=c~=e) & (b~=d~=f).
+    	
+		
+    	!t : (safeBoard(t) <=> (!x[index] : ?=1y[index] : queen(t, x, y)) & (!y : ?=1x : queen(t, x, y)) & (!d : #{x y : queen(t, x, y) & diag1(x, y) = d} < 2) & (!d : #{x y : queen(t,x, y) & diag2(x, y) = d} < 2)).
+    	
+}
+
+procedure main() {
+        /*  Important: the option xsb is not present in every installation, in order to obtain 
+         *  efficient definition evaluation with XSB, you should compile IDP yourself
+         *  (as XSB cannot be distributed with dynamically linked binaries
+         */
+        stdoptions.xsb=true                    // use XSB to calculate definitions that can be
+                                               // calculated in advance
+        diags = calculatedefinitions(T,S)      // calculate the definitions for symbols diag1 and diag2
+                                               // The resulting variable (diags) contains a single structure
+                                               // in which the defined symbols are two-valued
+        print("Definitions calculated:\n"..tostring(diags))
+
+        stdoptions.nbmodels=0                  // search for all models
+        solutions = modelexpand(T,diags)       // solutions is now a (Lua) table with all models
+                                               // Note that instead of diags, we could also do modelexpand on S,
+                                               // since the standard modelexpand workflow contains a call to
+                                               // calculatedefinitions
+        print(#solutions.." models found")     // "#" retrieves table size, .. is the lua concatenation
+        for i,sol in ipairs(solutions) do      // A for-loop to iterate over all solutions.
+                print("model "..i..":")        // ipairs is a builtin Lua procedure which allows you
+                                               // to loop over the index and table elements of a table
+                print(sol)
+        end
+}

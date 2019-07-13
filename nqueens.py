@@ -1,10 +1,17 @@
-# Q1
+# Date: Jun 26, 2019
+# Author: Ben Yang
+# Description: Various functions that creates a SAT of n queen problem 
+# for minisat. For educational purposes only. Please give appropriate 
+# credits.
+
 import math
 import time
 import os
 
+# Creates a SAT such that solving it yields a valid n queen position
 def make_queen_sat(N):
 
+	# Creates the "exactly one queen" clause.
 	def exactly_one(arr):
 		cnf = ""
 		count = 0
@@ -22,6 +29,7 @@ def make_queen_sat(N):
 		count += 1
 		return (cnf, count, literals)
 
+	# Creates the "at most one queen" clause.
 	def at_most_one(arr):
 		cnf = ""
 		count = 0
@@ -39,14 +47,14 @@ def make_queen_sat(N):
 
 	cnfvar = [ [i*N + j + 1 for j in range(N)] for i in range(N) ]
 
-	# Row Constraints
+	# Row Constraints (exactly one queen per row)
 	for arr in cnfvar:
 		result = exactly_one(arr)
 		cnf += result[0]
 		count += result[1]
 		literals += result[2]
 
-	# Column Constraints
+	# Column Constraints (exactly one queen per column)
 	for i in range(N):
 		arr = [ a[i] for a in cnfvar ]
 		result = exactly_one(arr)
@@ -54,7 +62,7 @@ def make_queen_sat(N):
 		count += result[1]
 		literals += result[2]
 
-	# Diagonal Constraints
+	# Diagonal Constraints (at most one queen per diagonal)
 	diagLR = cnfvar[0][:N-1]
 	diagRL = cnfvar[0][1:]
 	for i in range(1, N-1):
@@ -96,6 +104,7 @@ def make_queen_sat(N):
 	cnf = "p cnf " + str(N*N) + " " + str(count) + "\n" + cnf
 	return (cnf, N*N, count, literals)
 
+# Visualize the n queen solution from minisat return file
 def draw_queen_sat_sol(sol):
 	sol = sol.splitlines()
 	if sol[0] == "UNSAT":
@@ -121,6 +130,7 @@ def draw_queen_sat_sol(sol):
 	print(board)
 	return "SATISFIABLE"
 
+# Creates SAT and runs minisat, then visualizes the solution.
 def test(N):
 
 	def write(name, mode, content):
@@ -145,6 +155,7 @@ def test(N):
 
 	return elapsed, var, clause, literals, solution
 
+# TEST how large of N before solve time exceeds 10 seconds.
 start = time.time()
 N = 2
 t = 0
