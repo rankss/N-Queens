@@ -1,2 +1,4 @@
 # N-Queens
-Solves N-Queen problem in Julia
+Julia: Given position of n queens on n by n board, finds minimum number of moves required such that no queens are attacking each other.
+
+Python: Given n, generates a sat file for minisat.
